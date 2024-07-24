@@ -3,7 +3,6 @@ package vm
 import (
 	"fmt"
 	"log"
-	"strconv"
 )
 
 const (
@@ -16,7 +15,7 @@ type IntcodeVM struct {
 	PcRegister       int
 	RelativeRegister int
 	Memory           []int
-	Mode             []int
+	Mode             int
 	Halt             bool
 
 	InputFunc  func() int
@@ -24,7 +23,7 @@ type IntcodeVM struct {
 }
 
 func CreateVM() IntcodeVM {
-	return IntcodeVM{PcRegister: 0, RelativeRegister: 0, Memory: []int{}, Mode: []int{}, Halt: false}
+	return IntcodeVM{PcRegister: 0, RelativeRegister: 0, Memory: []int{}, Mode: MODE_POSITION, Halt: false}
 }
 
 func (vm *IntcodeVM) LoadProgram(program []int) {
@@ -35,43 +34,42 @@ func (vm *IntcodeVM) LoadProgram(program []int) {
 // Return when vm is on halt with value at address '0' of memory
 func (vm *IntcodeVM) Run() (int, error) {
 	for vm.PcRegister < len(vm.Memory) {
-		opcode := 0
-		opcode, vm.Mode = vm.ReadNextOpcode()
+		opcode := vm.ReadNextOpcode()
 		switch opcode {
 		case OPCODE_ADD:
-			aI := vm.ReadNext(vm.Mode[0])
-			bI := vm.ReadNext(vm.Mode[1])
+			aI := vm.ReadNext(vm.Mode)
+			bI := vm.ReadNext(vm.Mode)
 			ans := aI + bI
 
-			vm.WriteNext(ans, vm.Mode[2])
+			vm.WriteNext(ans, vm.Mode)
 			vm.Next()
 
 		case OPCODE_MUL:
-			aI := vm.ReadNext(vm.Mode[0])
-			bI := vm.ReadNext(vm.Mode[1])
+			aI := vm.ReadNext(vm.Mode)
+			bI := vm.ReadNext(vm.Mode)
 			ans := aI * bI
 
-			vm.WriteNext(ans, vm.Mode[2])
+			vm.WriteNext(ans, vm.Mode)
 			vm.Next()
 		case OPCODE_INPUT:
 			inp := vm.ReadInput()
-			vm.WriteNext(inp, vm.Mode[0])
+			vm.WriteNext(inp, vm.Mode)
 			vm.Next()
 		case OPCODE_OUTPUT:
-			aI := vm.ReadNext(vm.Mode[0])
+			aI := vm.ReadNext(vm.Mode)
 			vm.WriteOutput(aI)
 			vm.Next()
 
 		case OPCODE_JMP_T:
-			aI := vm.ReadNext(vm.Mode[0])
-			bI := vm.ReadNext(vm.Mode[1])
+			aI := vm.ReadNext(vm.Mode)
+			bI := vm.ReadNext(MODE_IMMEDIATE)
 			if aI != 0 {
 				vm.Jump(bI)
 			} else {
 				vm.Next()
 			}
 		case OPCODE_JMP_F:
-			aI := vm.ReadNext(vm.Mode[0])
+			aI := vm.ReadNext(vm.Mode)
 			bI := vm.ReadNext(MODE_IMMEDIATE)
 			if aI == 0 {
 				vm.Jump(bI)
@@ -79,25 +77,25 @@ func (vm *IntcodeVM) Run() (int, error) {
 				vm.Next()
 			}
 		case OPCODE_LESS_THAN:
-			aI := vm.ReadNext(vm.Mode[0])
-			bI := vm.ReadNext(vm.Mode[1])
+			aI := vm.ReadNext(vm.Mode)
+			bI := vm.ReadNext(vm.Mode)
 			if aI < bI {
-				vm.WriteNext(1, vm.Mode[2])
+				vm.WriteNext(1, vm.Mode)
 			} else {
-				vm.WriteNext(0, vm.Mode[2])
+				vm.WriteNext(0, vm.Mode)
 			}
 			vm.Next()
 		case OPCODE_EQUALS:
-			aI := vm.ReadNext(vm.Mode[0])
-			bI := vm.ReadNext(vm.Mode[1])
+			aI := vm.ReadNext(vm.Mode)
+			bI := vm.ReadNext(vm.Mode)
 			if aI == bI {
-				vm.WriteNext(1, vm.Mode[2])
+				vm.WriteNext(1, vm.Mode)
 			} else {
-				vm.WriteNext(0, vm.Mode[2])
+				vm.WriteNext(0, vm.Mode)
 			}
 			vm.Next()
 		case OPCODE_INC_RELV:
-			aI := vm.ReadNext(vm.Mode[0])
+			aI := vm.ReadNext(vm.Mode)
 			vm.WriteRelvRegister(aI + vm.ReadRelvRegister())
 			vm.Next()
 		case OPCODE_HALT:
@@ -116,25 +114,9 @@ func (vm *IntcodeVM) Next() {
 	vm.PcRegister++
 }
 
-func (vm *IntcodeVM) ReadNextOpcode() (int, []int) {
+func (vm *IntcodeVM) ReadNextOpcode() int {
 	val := vm.Memory[vm.PcRegister]
-	n := len(strconv.Itoa(val))
-	mode := []int{0, 0, 0}
-	opc := val
-	if n == 4 { // Not speficed Mode
-		opc = val % 10
-		val /= 10
-		mode[2] = val % 10
-		val /= 10
-		mode[1] = val % 10
-		val /= 10
-		mode[0] = val % 10
-	}
-	switch opc {
-	case OPCODE_ADD:
-
-	}
-	return opc, mode
+	return val
 
 }
 func (vm *IntcodeVM) ReadNext(mode int) int {
