@@ -133,20 +133,18 @@ func (vm *IntcodeVM) ReadNextOpcode() (int, []int) {
 		val /= 10
 
 		// For handling padding at starting
-		if n != 4 {
-			mode[2] = val % 10
-		}
+		mode[2] = val % 10
 		return opc, mode
 
 	}
-
+	// fmt.Printf("VAL: %d OP: %d mode: %v\n", val, opc, mode)
 	// Set default Modes
-	switch opc {
-	case OPCODE_JMP_T:
-		mode[1] = MODE_IMMEDIATE
-	case OPCODE_JMP_F:
-		mode[1] = MODE_IMMEDIATE
-	}
+	// switch opc {
+	// case OPCODE_JMP_T:
+	// 	mode[1] = MODE_IMMEDIATE
+	// case OPCODE_JMP_F:
+	// 	mode[1] = MODE_IMMEDIATE
+	// }
 	return opc, mode
 
 }
@@ -160,9 +158,8 @@ func (vm *IntcodeVM) ReadNext(mode int) int {
 
 		return vm.Memory[vm.PcRegister]
 	case MODE_RELATIVE:
-		// TODO: To be implemented
 		vm.Next()
-		return vm.Memory[vm.Memory[vm.PcRegister]]
+		return vm.Memory[vm.RelativeRegister+vm.Memory[vm.PcRegister]]
 	default:
 		log.Fatalf("Unknown mode: %d\n", mode)
 		return -1
@@ -173,10 +170,20 @@ func (vm *IntcodeVM) WriteNext(value int, mode int) {
 	switch mode {
 	case MODE_POSITION:
 		vm.Next()
+
+		// Dynamic Memory Increasing
+		if vm.Memory[vm.PcRegister] >= len(vm.Memory) {
+			n := vm.Memory[vm.PcRegister] - len(vm.Memory)
+			vm.Memory = append(vm.Memory, make([]int, n+1)...)
+		}
+
 		vm.Memory[vm.Memory[vm.PcRegister]] = value
 	case MODE_RELATIVE:
-		// TODO: To be implemented
-		vm.Memory[vm.ReadNext(mode)] = value
+		if vm.Memory[vm.PcRegister] > len(vm.Memory) {
+			n := vm.Memory[vm.PcRegister] - len(vm.Memory)
+			vm.Memory = append(vm.Memory, make([]int, n+1)...)
+		}
+		vm.Memory[vm.RelativeRegister+vm.ReadNext(mode)] = value
 	default:
 		log.Fatalf("Unknown mode: %d\n", mode)
 	}
