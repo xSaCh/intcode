@@ -3,6 +3,7 @@ package vm
 import (
 	"fmt"
 	"log"
+	"slices"
 	"strconv"
 )
 
@@ -16,6 +17,7 @@ type IntcodeVM struct {
 	PcRegister       int
 	RelativeRegister int
 	Memory           []int
+	InitMemory       []int // Modified by LoadProgram
 	Mode             []int
 	Halt             bool
 
@@ -29,7 +31,10 @@ func CreateVM() IntcodeVM {
 
 func (vm *IntcodeVM) LoadProgram(program []int) {
 	vm.Memory = program
+	vm.InitMemory = slices.Clone(program)
 	vm.PcRegister = 0
+	vm.RelativeRegister = 0
+	vm.Halt = false
 }
 
 // Return when vm is on halt with value at address '0' of memory
