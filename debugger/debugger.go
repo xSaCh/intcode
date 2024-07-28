@@ -3,91 +3,40 @@ package debugger
 import (
 	"fmt"
 	"runtime"
+	"strconv"
 
 	imgui "github.com/AllenDang/cimgui-go"
 	"github.com/xSaCh/intcode/vm"
 )
 
 var (
-	vmIns          *vm.IntcodeVM
-	showDemoWindow bool
-	selected       bool
-	backend        imgui.Backend[imgui.GLFWWindowFlags]
-	barValues      []int64
-	f              bool
+	vmIns     *vm.IntcodeVM
+	backend   imgui.Backend[imgui.GLFWWindowFlags]
+	barValues []int64
 )
 
-func showWidgetsDemo() {
-	showDemoWindow = true
-
-	did := imgui.DockSpaceOverViewport()
-
-	if showDemoWindow {
-		imgui.Begin("Q")
-		imgui.Text("HEEELOO")
-		imgui.Button("QQQQ")
-		imgui.End()
-	}
-
-	imgui.SetNextWindowSizeV(imgui.NewVec2(300, 300), imgui.CondOnce)
-
-	imgui.Begin("Window 1")
-	if imgui.ButtonV("Click Me", imgui.NewVec2(80, 20)) {
-		w, h := backend.DisplaySize()
-		fmt.Println(w, h)
-	}
-	imgui.TextUnformatted("Unformatted text")
-	imgui.Checkbox("Show demo window", &showDemoWindow)
-	if imgui.BeginCombo("Combo", "Combo preview") {
-		imgui.SelectableBoolPtr("Item 1", &selected)
-		imgui.SelectableBool("Item 2")
-		imgui.SelectableBool("Item 3")
-		imgui.EndCombo()
-	}
-
-	if imgui.RadioButtonBool("Radio button1", selected) {
-		selected = true
-	}
-
-	imgui.SameLine()
-
-	if imgui.RadioButtonBool("Radio button2", !selected) {
-		selected = false
-	}
-
-	// a := imgui.ImNodesGetIO()
-	// imgui.Dock
-
-	if f {
-		f = false
-		// imgui.InternalDockBuilderSetNodeSize(did, imgui.MainViewport().Size())
-
-		mid := did
-		// mid = imgui.InternalDockBuilderSplitNode(did, imgui.DirLeft, 0.5, nil, &did)
-		rid := imgui.InternalDockBuilderSplitNode(mid, imgui.DirRight, 0.25, nil, &mid)
-		imgui.InternalDockBuilderDockWindow("Window 1", mid)
-		imgui.InternalDockBuilderDockWindow("Q", rid)
-		imgui.InternalDockBuilderFinish(did)
-	}
-
-	imgui.End()
-}
-
 func rawMemory() {
-	data := [][]int{{11101, 3340, 3300, 3300}, {3491, 3949, 2940, 4583}}
-	imgui.Begin("table")
-	if imgui.BeginTable("table_t", 4) {
+	memMaxWidth := len(strconv.Itoa(len(vmIns.Memory)))
+	imgui.Begin("Raw Memory")
+	if imgui.BeginTable("tbl_raw_mem", 2) {
 
 		imgui.PushStyleColorU32(imgui.ColText, 0xFF5F5F5F)
-		for i := 0; i < 5; i++ {
+		for i := 0; i < len(vmIns.Memory); i++ {
 			imgui.TableNextRow()
 
 			if i == 2 {
 				imgui.PushStyleColorU32(imgui.ColText, 0xFFFFFFFF)
 			}
-			for j := 0; j < 4; j++ {
+			for j := 0; j < 2; j++ {
 				imgui.TableSetColumnIndex(int32(j))
-				imgui.Text(fmt.Sprintf("%d\t", data[i%2][j]))
+				if j == 0 {
+					// imgui.PushStyleColorU32(imgui.ColText, 0xFFFFFFFF)
+					imgui.Text(fmt.Sprintf("[ %0*d ]\t", memMaxWidth+1, i))
+					// imgui.PopStyleColor()
+
+				} else {
+					imgui.Text(fmt.Sprintf("%d\t", vmIns.Memory[i]))
+				}
 			}
 			if i == 2 {
 				imgui.PopStyleColor()
@@ -100,17 +49,15 @@ func rawMemory() {
 	imgui.End()
 }
 
-func parsedIntcode() {
-	// data := [][]string{{"ADD #1  #2  #4", "ADD 3 5 #4"}, {"ADD1 #1  #2  #4", "ADD 3 5 #4"},
-	// 	{"ADD2 #1  #2  #4", "ADD 3 5 #4"}, {"ADD3 #1  #2  #4", "ADD 3 5 #4"}}
+func disassembledIntcode() {
 	data, err := GetFormattedMemory(vmIns.Memory)
 	if err != nil {
 		fmt.Printf("err: %v\n", err)
 		return
 	}
 
-	imgui.Begin("parsed")
-	if imgui.BeginTable("table_t", 4) {
+	imgui.Begin("Disassembled Intcode")
+	if imgui.BeginTable("tbl_dis_int", 4) {
 
 		imgui.PushStyleColorU32(imgui.ColText, 0xFF5F5F5F)
 		for i := 0; i < len(data); i++ {
@@ -146,7 +93,7 @@ func loop() {
 	// showWidgetsDemo()
 	imgui.ShowDemoWindow()
 	rawMemory()
-	parsedIntcode()
+	disassembledIntcode()
 }
 
 func beforeDestroyContext() {
@@ -176,11 +123,9 @@ func Run(vmI *vm.IntcodeVM) {
 	backend.SetCloseCallback(func(b imgui.Backend[imgui.GLFWWindowFlags]) {
 		fmt.Println("window is closing")
 	})
-	f = true
 
 	io := imgui.CurrentIO()
-	fnt := io.Fonts().AddFontFromFileTTF("./debugger/hack.ttf", 18)
-	_ = fnt
+	io.Fonts().AddFontFromFileTTF("./debugger/hack.ttf", 18)
 
 	vmIns = vmI
 	backend.Run(loop)

@@ -11,54 +11,50 @@ func GetFormattedMemory(memory []int) ([][]string, error) {
 	lines := [][]string{}
 	for i := 0; i < len(memory); i++ {
 		var curLine []string
-		opcode, _ := ParseOpcode(memory[i])
+		opcode, mod := ParseOpcode(memory[i])
 
 		switch opcode {
 		case vm.OPCODE_ADD:
-			a := memory[i+1]
-			b := memory[i+2]
-			c := memory[i+3]
-			curLine = []string{"ADD", fmt.Sprintf("#%d", a), fmt.Sprintf("#%d", b), fmt.Sprintf("#%d", c)}
+
+			curLine = []string{"ADD", FormattedMem(memory, i+1, mod[0]),
+				FormattedMem(memory, i+2, mod[1]), FormattedMem(memory, i+3, mod[2])}
 			i += 3
 		case vm.OPCODE_MUL:
-			a := memory[i+1]
-			b := memory[i+2]
-			c := memory[i+3]
-			curLine = []string{"MUL", fmt.Sprintf("#%d", a), fmt.Sprintf("#%d", b), fmt.Sprintf("#%d", c)}
+
+			curLine = []string{"MUL", FormattedMem(memory, i+1, mod[0]),
+				FormattedMem(memory, i+2, mod[1]), FormattedMem(memory, i+3, mod[2])}
 			i += 3
 		case vm.OPCODE_INPUT:
-			a := memory[i+1]
-			curLine = []string{"IN", fmt.Sprintf("#%d", a)}
+
+			curLine = []string{"IN", FormattedMem(memory, i+1, mod[0])}
 			i++
 		case vm.OPCODE_OUTPUT:
-			a := memory[i+1]
-			curLine = []string{"OUT", fmt.Sprintf("#%d", a)}
+
+			curLine = []string{"OUT", FormattedMem(memory, i+1, mod[0])}
 			i++
 		case vm.OPCODE_JMP_T:
-			a := memory[i+1]
-			b := memory[i+2]
-			curLine = []string{"JZ", fmt.Sprintf("#%d", a), fmt.Sprintf("#%d", b)}
+
+			curLine = []string{"JZ", FormattedMem(memory, i+1, mod[0]),
+				FormattedMem(memory, i+2, mod[1])}
 			i += 2
 		case vm.OPCODE_JMP_F:
-			a := memory[i+1]
-			b := memory[i+2]
-			curLine = []string{"JNZ", fmt.Sprintf("#%d", a), fmt.Sprintf("#%d", b)}
+
+			curLine = []string{"JNZ", FormattedMem(memory, i+1, mod[0]),
+				FormattedMem(memory, i+2, mod[1])}
 			i += 2
 		case vm.OPCODE_LESS_THAN:
-			a := memory[i+1]
-			b := memory[i+2]
-			c := memory[i+3]
-			curLine = []string{"SLT", fmt.Sprintf("#%d", a), fmt.Sprintf("#%d", b), fmt.Sprintf("#%d", c)}
+
+			curLine = []string{"SLT", FormattedMem(memory, i+1, mod[0]),
+				FormattedMem(memory, i+2, mod[1]), FormattedMem(memory, i+3, mod[2])}
 			i += 3
 		case vm.OPCODE_EQUALS:
-			a := memory[i+1]
-			b := memory[i+2]
-			c := memory[i+3]
-			curLine = []string{"SEQ", fmt.Sprintf("#%d", a), fmt.Sprintf("#%d", b), fmt.Sprintf("#%d", c)}
+
+			curLine = []string{"SEQ", FormattedMem(memory, i+1, mod[0]),
+				FormattedMem(memory, i+2, mod[1]), FormattedMem(memory, i+3, mod[2])}
 			i += 3
 		case vm.OPCODE_INC_RELV:
-			a := memory[i+1]
-			curLine = []string{"INCB", fmt.Sprintf("#%d", a)}
+
+			curLine = []string{"INCB", FormattedMem(memory, i+1, mod[0])}
 			i++
 		case vm.OPCODE_HALT:
 			curLine = []string{"HALT"}
@@ -92,4 +88,18 @@ func ParseOpcode(val int) (int, []int) {
 
 	}
 	return opc, mode
+}
+
+func FormattedMem(memory []int, ind, mod int) string {
+	switch mod {
+	case 0:
+		return fmt.Sprintf("#%d", memory[ind])
+	case 1:
+		return fmt.Sprintf("%d", memory[ind])
+	case 2:
+		// Handle relative case
+		return fmt.Sprintf("%d", memory[ind])
+	default:
+		return ""
+	}
 }
