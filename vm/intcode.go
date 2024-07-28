@@ -35,78 +35,89 @@ func (vm *IntcodeVM) LoadProgram(program []int) {
 // Return when vm is on halt with value at address '0' of memory
 func (vm *IntcodeVM) Run() (int, error) {
 	for vm.PcRegister < len(vm.Memory) {
-		opcode := 0
-		opcode, vm.Mode = vm.ReadNextOpcode()
-		switch opcode {
-		case OPCODE_ADD:
-			aI := vm.ReadNext(vm.Mode[0])
-			bI := vm.ReadNext(vm.Mode[1])
-			ans := aI + bI
-
-			vm.WriteNext(ans, vm.Mode[2])
-			vm.Next()
-
-		case OPCODE_MUL:
-			aI := vm.ReadNext(vm.Mode[0])
-			bI := vm.ReadNext(vm.Mode[1])
-			ans := aI * bI
-
-			vm.WriteNext(ans, vm.Mode[2])
-			vm.Next()
-		case OPCODE_INPUT:
-			inp := vm.ReadInput()
-			vm.WriteNext(inp, vm.Mode[0])
-			vm.Next()
-		case OPCODE_OUTPUT:
-			aI := vm.ReadNext(vm.Mode[0])
-			vm.WriteOutput(aI)
-			vm.Next()
-
-		case OPCODE_JMP_T:
-			aI := vm.ReadNext(vm.Mode[0])
-			bI := vm.ReadNext(vm.Mode[1])
-			if aI != 0 {
-				vm.Jump(bI)
-			} else {
-				vm.Next()
-			}
-		case OPCODE_JMP_F:
-			aI := vm.ReadNext(vm.Mode[0])
-			bI := vm.ReadNext(MODE_IMMEDIATE)
-			if aI == 0 {
-				vm.Jump(bI)
-			} else {
-				vm.Next()
-			}
-		case OPCODE_LESS_THAN:
-			aI := vm.ReadNext(vm.Mode[0])
-			bI := vm.ReadNext(vm.Mode[1])
-			if aI < bI {
-				vm.WriteNext(1, vm.Mode[2])
-			} else {
-				vm.WriteNext(0, vm.Mode[2])
-			}
-			vm.Next()
-		case OPCODE_EQUALS:
-			aI := vm.ReadNext(vm.Mode[0])
-			bI := vm.ReadNext(vm.Mode[1])
-			if aI == bI {
-				vm.WriteNext(1, vm.Mode[2])
-			} else {
-				vm.WriteNext(0, vm.Mode[2])
-			}
-			vm.Next()
-		case OPCODE_INC_RELV:
-			aI := vm.ReadNext(vm.Mode[0])
-			vm.WriteRelvRegister(aI + vm.ReadRelvRegister())
-			vm.Next()
-		case OPCODE_HALT:
-			vm.Next()
+		canStop, err := vm.Step()
+		if err != nil {
+			return -1, err
+		}
+		if canStop {
 			return vm.Memory[0], nil
 		}
 	}
+	return vm.Memory[0], nil
+}
 
-	return -1, nil
+func (vm *IntcodeVM) Step() (bool, error) {
+	opcode := 0
+	opcode, vm.Mode = vm.ReadNextOpcode()
+	switch opcode {
+	case OPCODE_ADD:
+		aI := vm.ReadNext(vm.Mode[0])
+		bI := vm.ReadNext(vm.Mode[1])
+		ans := aI + bI
+
+		vm.WriteNext(ans, vm.Mode[2])
+		vm.Next()
+
+	case OPCODE_MUL:
+		aI := vm.ReadNext(vm.Mode[0])
+		bI := vm.ReadNext(vm.Mode[1])
+		ans := aI * bI
+
+		vm.WriteNext(ans, vm.Mode[2])
+		vm.Next()
+	case OPCODE_INPUT:
+		inp := vm.ReadInput()
+		vm.WriteNext(inp, vm.Mode[0])
+		vm.Next()
+	case OPCODE_OUTPUT:
+		aI := vm.ReadNext(vm.Mode[0])
+		vm.WriteOutput(aI)
+		vm.Next()
+
+	case OPCODE_JMP_T:
+		aI := vm.ReadNext(vm.Mode[0])
+		bI := vm.ReadNext(vm.Mode[1])
+		if aI != 0 {
+			vm.Jump(bI)
+		} else {
+			vm.Next()
+		}
+	case OPCODE_JMP_F:
+		aI := vm.ReadNext(vm.Mode[0])
+		bI := vm.ReadNext(MODE_IMMEDIATE)
+		if aI == 0 {
+			vm.Jump(bI)
+		} else {
+			vm.Next()
+		}
+	case OPCODE_LESS_THAN:
+		aI := vm.ReadNext(vm.Mode[0])
+		bI := vm.ReadNext(vm.Mode[1])
+		if aI < bI {
+			vm.WriteNext(1, vm.Mode[2])
+		} else {
+			vm.WriteNext(0, vm.Mode[2])
+		}
+		vm.Next()
+	case OPCODE_EQUALS:
+		aI := vm.ReadNext(vm.Mode[0])
+		bI := vm.ReadNext(vm.Mode[1])
+		if aI == bI {
+			vm.WriteNext(1, vm.Mode[2])
+		} else {
+			vm.WriteNext(0, vm.Mode[2])
+		}
+		vm.Next()
+	case OPCODE_INC_RELV:
+		aI := vm.ReadNext(vm.Mode[0])
+		vm.WriteRelvRegister(aI + vm.ReadRelvRegister())
+		vm.Next()
+	case OPCODE_HALT:
+		vm.Next()
+		return true, nil
+	}
+
+	return false, nil
 }
 
 func (vm *IntcodeVM) Jump(address int) {

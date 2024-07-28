@@ -1,34 +1,21 @@
-package main
+package debugger
 
 import (
 	"fmt"
 	"runtime"
 
 	imgui "github.com/AllenDang/cimgui-go"
+	"github.com/xSaCh/intcode/vm"
 )
 
 var (
+	vmIns          *vm.IntcodeVM
 	showDemoWindow bool
-	value1         int32
-	value2         int32
-	value3         int32
-	values         [2]int32 = [2]int32{value1, value2}
-	content        string   = "Let me try"
-	r              float32
-	g              float32
-	b              float32
-	a              float32
-	color4         [4]float32 = [4]float32{r, g, b, a}
 	selected       bool
 	backend        imgui.Backend[imgui.GLFWWindowFlags]
 	barValues      []int64
 	f              bool
 )
-
-func callback(data imgui.InputTextCallbackData) int {
-	fmt.Println("got call back")
-	return 0
-}
 
 func showWidgetsDemo() {
 	showDemoWindow = true
@@ -67,14 +54,6 @@ func showWidgetsDemo() {
 	if imgui.RadioButtonBool("Radio button2", !selected) {
 		selected = false
 	}
-
-	imgui.InputTextWithHint("Name", "write your name here", &content, 0, callback)
-	imgui.Text(content)
-	imgui.SliderInt("Slider int", &value3, 0, 100)
-	imgui.DragInt("Drag int", &value1)
-	imgui.DragInt2("Drag int2", &values)
-	value1 = values[0]
-	imgui.ColorEdit4("Color Edit3", &color4)
 
 	// a := imgui.ImNodesGetIO()
 	// imgui.Dock
@@ -122,25 +101,32 @@ func rawMemory() {
 }
 
 func parsedIntcode() {
-	imgui.Begin("parsed")
-	data := [][]string{{"ADD #1  #2  #4", "ADD 3 5 #4"}, {"ADD1 #1  #2  #4", "ADD 3 5 #4"},
-		{"ADD2 #1  #2  #4", "ADD 3 5 #4"}, {"ADD3 #1  #2  #4", "ADD 3 5 #4"}}
+	// data := [][]string{{"ADD #1  #2  #4", "ADD 3 5 #4"}, {"ADD1 #1  #2  #4", "ADD 3 5 #4"},
+	// 	{"ADD2 #1  #2  #4", "ADD 3 5 #4"}, {"ADD3 #1  #2  #4", "ADD 3 5 #4"}}
+	data, err := GetFormattedMemory(vmIns.Memory)
+	if err != nil {
+		fmt.Printf("err: %v\n", err)
+		return
+	}
 
-	if imgui.BeginTable("table_t", 2) {
+	imgui.Begin("parsed")
+	if imgui.BeginTable("table_t", 4) {
 
 		imgui.PushStyleColorU32(imgui.ColText, 0xFF5F5F5F)
-		for i := 0; i < 4; i++ {
+		for i := 0; i < len(data); i++ {
 			imgui.TableNextRow()
 
 			if i == 2 {
 				imgui.PushStyleColorU32(imgui.ColText, 0xFFFFFFFF)
 			}
-			for j := 0; j < 2; j++ {
+			for j := 0; j < 4; j++ {
 				imgui.TableSetColumnIndex(int32(j))
 				// if i == 2 {
 				// 	imgui.TableSetBgColor(imgui.TableBgTargetCellBg, 0xFFFF4455)
 				// }
-				imgui.Text(fmt.Sprintf("%s\t", data[i][j]))
+				if j < len(data[i]) {
+					imgui.Text(fmt.Sprintf("%s\t", data[i][j]))
+				}
 			}
 			if i == 2 {
 				imgui.PopStyleColor()
@@ -171,7 +157,7 @@ func init() {
 	runtime.LockOSThread()
 }
 
-func main() {
+func Run(vmI *vm.IntcodeVM) {
 
 	for i := 0; i < 10; i++ {
 		barValues = append(barValues, int64(i+1))
@@ -193,8 +179,10 @@ func main() {
 	f = true
 
 	io := imgui.CurrentIO()
-	fnt := io.Fonts().AddFontFromFileTTF("hack.ttf", 18)
+	fnt := io.Fonts().AddFontFromFileTTF("./debugger/hack.ttf", 18)
 	_ = fnt
+
+	vmIns = vmI
 	backend.Run(loop)
 
 }
