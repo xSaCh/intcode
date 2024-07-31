@@ -58,7 +58,7 @@ func GetFormattedMemory(memory []int, pc int) ([][]string, int, error) {
 				curLine = []string{}
 				break
 			}
-			curLine = []string{"JZ", FormattedMem(memory, i+1, mod[0]),
+			curLine = []string{"JNZ", FormattedMem(memory, i+1, mod[0]),
 				FormattedMem(memory, i+2, mod[1])}
 			i += 2
 		case vm.OPCODE_JMP_F:
@@ -67,7 +67,7 @@ func GetFormattedMemory(memory []int, pc int) ([][]string, int, error) {
 				curLine = []string{}
 				break
 			}
-			curLine = []string{"JNZ", FormattedMem(memory, i+1, mod[0]),
+			curLine = []string{"JZ", FormattedMem(memory, i+1, mod[0]),
 				FormattedMem(memory, i+2, mod[1])}
 			i += 2
 		case vm.OPCODE_LESS_THAN:
