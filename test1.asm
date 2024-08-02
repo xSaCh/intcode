@@ -1,0 +1,5 @@
+IN x
+ADD x 9 y
+OUT x
+OUT y
+HALT
