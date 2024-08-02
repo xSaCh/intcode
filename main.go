@@ -12,7 +12,7 @@ func mainVM() {
 
 	vm := vm.CreateVM()
 	i := 0
-	vm.InputFunc = func() int { i++; return 5; return in[i-1] }
+	vm.InputFunc = func() int { i++; return 5 }
 	// a := []int{}
 	// vm.LoadProgram([]int{3, 9, 3, 10, 4, 9, 4, 10, 99, 0, 0})
 	// vm.LoadProgram([]int{3, 34, 1007, 34, 1, 35, 1005, 35, 30, 1001, 34, 0, 33, 1001, 33, -1, 33, 1006, 33, 27, 2, 34, 33, 34, 1005, 33, 13, 4, 34, 99, 104, 1, 99})
