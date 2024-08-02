@@ -12,11 +12,12 @@ import (
 )
 
 type Assembler struct {
-	Tokens               []string
-	TokensWithoutBinding []string
-	Labels               map[string]int
-	Variables            map[string]int
-	ByteCode             []int
+	Tokens    []string
+	Labels    map[string]int
+	Variables map[string]int
+	ByteCode  []int
+
+	ParsedOpcodes []AssembleOpcode
 
 	lastAddr          int
 	toBeRemovedLabels []string
@@ -31,11 +32,15 @@ type AssembleOpcode struct {
 
 func NewAssembler() *Assembler {
 	return &Assembler{
-		Tokens:               []string{},
-		TokensWithoutBinding: []string{},
-		Labels:               make(map[string]int),
-		Variables:            make(map[string]int),
-		ByteCode:             []int{},
+		Tokens:    []string{},
+		Labels:    map[string]int{},
+		Variables: map[string]int{},
+		ByteCode:  []int{},
+
+		ParsedOpcodes: []AssembleOpcode{},
+
+		lastAddr:          0,
+		toBeRemovedLabels: []string{},
 	}
 }
 
@@ -50,15 +55,11 @@ func (a *Assembler) Assemble(data string) error {
 	a.symbolGenerator()
 
 	// Preprocessor #2 (Remove label declarations)
-	newTokens := slices.DeleteFunc(a.Tokens, func(e string) bool {
+	a.Tokens = slices.DeleteFunc(a.Tokens, func(e string) bool {
 		return slices.Contains(a.toBeRemovedLabels, e)
 	})
 
-	a.TokensWithoutBinding = slices.Clone(a.Tokens)
-	a.Tokens = newTokens
-
 	a.lastAddr = len(a.Tokens)
-	fmt.Printf("tokens: %v\n", a.Tokens)
 
 	a.translation()
 	return nil
@@ -165,7 +166,6 @@ func (a *Assembler) translation() error {
 		}
 	}
 
-	fmt.Printf("byteCode: %v\n", byteCode)
 	a.ByteCode = byteCode
 	return nil
 }
@@ -201,7 +201,6 @@ func (a *Assembler) symbolGenerator() {
 		}
 	}
 
-	fmt.Printf("a.Variables: %v\n", a.Variables)
 }
 
 func (a *Assembler) parseOpcodeLine(opcode int, params []string) AssembleOpcode {
@@ -243,6 +242,8 @@ func (a *Assembler) parseOpcodeLine(opcode int, params []string) AssembleOpcode 
 	}
 	op.FinalOpcode = op.FinalOpcode*100 + op.Opcode
 	// fmt.Printf("OP: %d | %v | %v | %v\n", opcode, op.Params, op.Mode, op.FinalOpcode)
+
+	a.ParsedOpcodes = append(a.ParsedOpcodes, op)
 	return op
 }
 

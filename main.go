@@ -42,7 +42,10 @@ func mainVM() {
 func mainAs() {
 	a := assembler.NewAssembler()
 	a.AssembleFromFile("test.asm")
-	fmt.Printf("assembler.Start(\"test.asm\"): %v\n", a.ByteCode)
+	fmt.Printf("a.Tokens: %v\n", a.Tokens)
+	fmt.Printf("a.ParsedOpcodes: %v\n", a.ParsedOpcodes)
+	fmt.Printf("a.ByteCode: %v\n", a.ByteCode)
+	// fmt.Printf("assembler.Start(\"test.asm\"): %v\n", a.ByteCode)
 }
 
 func main() {
