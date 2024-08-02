@@ -40,10 +40,12 @@ func mainVM() {
 }
 
 func mainAs() {
-	fmt.Printf("assembler.Start(\"test.asm\"): %v\n", assembler.Start("test.asm"))
+	a := assembler.NewAssembler()
+	a.AssembleFromFile("test.asm")
+	fmt.Printf("assembler.Start(\"test.asm\"): %v\n", a.ByteCode)
 }
 
 func main() {
-	// mainAs()
-	mainVM()
+	mainAs()
+	// mainVM()
 }

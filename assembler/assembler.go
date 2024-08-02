@@ -12,9 +12,14 @@ import (
 )
 
 type Assembler struct {
-	Tokens    []string
-	Labels    map[string]int
-	Variables map[string]int
+	Tokens               []string
+	TokensWithoutBinding []string
+	Labels               map[string]int
+	Variables            map[string]int
+	ByteCode             []int
+
+	lastAddr          int
+	toBeRemovedLabels []string
 }
 
 type AssembleOpcode struct {
@@ -24,87 +29,51 @@ type AssembleOpcode struct {
 	FinalOpcode int
 }
 
-var lastAdrr int
-var variables map[string]int
-var labels map[string]int
+func NewAssembler() *Assembler {
+	return &Assembler{
+		Tokens:               []string{},
+		TokensWithoutBinding: []string{},
+		Labels:               make(map[string]int),
+		Variables:            make(map[string]int),
+		ByteCode:             []int{},
+	}
+}
 
-func Start(filePath string) error {
+func (a *Assembler) AssembleFromFile(filePath string) error {
 	data, _ := os.ReadFile(filePath)
 
-	lines := strings.Split(string(data), "\n")
+	return a.Assemble(string(data))
+}
 
-	// Tokenizer
-	tokens := []string{}
-	for _, l := range lines {
-		tk := strings.Fields(l)
-		if len(tk) > 0 {
-			tokens = append(tokens, tk...)
-		}
-	}
-	// Preprocessor #1 (Locate labels addrs)
-	labels = make(map[string]int)
-	variables = make(map[string]int)
-	toBeRemovedLabels := []string{}
-	vCnt := 0
-
-	for i, t := range tokens {
-		if strings.HasSuffix(t, ":") {
-			labels[t[:len(t)-1]] = i - len(labels)
-			toBeRemovedLabels = append(toBeRemovedLabels, t)
-			continue
-		}
-
-		if isOpcode(t) || !isVariable(t) {
-			continue
-		}
-
-		if _, ok := variables[t]; !ok {
-			variables[t] = vCnt
-			vCnt++
-		}
-
-	}
-
-	fmt.Printf("variables: %v\n", variables)
+func (a *Assembler) Assemble(data string) error {
+	a.tokenize(data)
+	a.symbolGenerator()
 
 	// Preprocessor #2 (Remove label declarations)
-	newTokens := slices.DeleteFunc(tokens, func(e string) bool {
-		return slices.Contains(toBeRemovedLabels, e)
+	newTokens := slices.DeleteFunc(a.Tokens, func(e string) bool {
+		return slices.Contains(a.toBeRemovedLabels, e)
 	})
 
-	oldTokens := slices.Clone(tokens)
-	tokens = newTokens
-	_ = oldTokens
-	// Preprocessor #3 (Replace labels with actual Addrs)
-	fmt.Printf("labels: %v\n", labels)
-	// for i, t := range tokens {
-	// 	if strings.HasPrefix(t, ":") {
-	// 		ind, ok := labels[t[1:]]
-	// 		if !ok {
-	// 			fmt.Printf("Invalid Label %s", t)
-	// 			return fmt.Errorf("invalid Label %s", t)
-	// 		}
+	a.TokensWithoutBinding = slices.Clone(a.Tokens)
+	a.Tokens = newTokens
 
-	// 		// tokens[i] = fmt.Sprintf("%d->%s", ind, tokens[ind])
-	// 		tokens[i] = strconv.Itoa(ind)
-	// 		continue
-	// 	}
-	// }
+	a.lastAddr = len(a.Tokens)
+	fmt.Printf("tokens: %v\n", a.Tokens)
 
-	lastAdrr = len(tokens)
-	fmt.Printf("tokens: %v\n", tokens)
+	a.translation()
+	return nil
+}
 
-	// Preprocessor #4 (Replace variables with actual memory addr)
-
-	// Tokens to bytecodes
+// Tokens to bytecodes
+func (a *Assembler) translation() error {
 	byteCode := []int{}
-	for i := 0; i < len(tokens); i++ {
+	for i := 0; i < len(a.Tokens); i++ {
 
-		t := tokens[i]
+		t := a.Tokens[i]
 
 		switch t {
 		case "ADD":
-			op := parseOpcodeLine(vm.OPCODE_ADD, tokens[i+1:i+4])
+			op := a.parseOpcodeLine(vm.OPCODE_ADD, a.Tokens[i+1:i+4])
 
 			// if err != nil || err1 != nil || err2 != nil {
 			// 	// return fmt.Errorf("invalid ADD instruction")
@@ -113,7 +82,7 @@ func Start(filePath string) error {
 			byteCode = append(byteCode, op.Params...)
 			i += 3
 		case "MUL":
-			op := parseOpcodeLine(vm.OPCODE_MUL, tokens[i+1:i+4])
+			op := a.parseOpcodeLine(vm.OPCODE_MUL, a.Tokens[i+1:i+4])
 
 			// if err != nil || err1 != nil || err2 != nil {
 			// 	// return fmt.Errorf("invalid MUL instruction")
@@ -124,17 +93,17 @@ func Start(filePath string) error {
 			i += 3
 
 		case "IN":
-			op := parseOpcodeLine(vm.OPCODE_INPUT, tokens[i+1:i+2])
+			op := a.parseOpcodeLine(vm.OPCODE_INPUT, a.Tokens[i+1:i+2])
 
 			// if err != nil {
-			// 	// return fmt.Errorf("invalid IN instruction %v", tokens[i+1])
+			// 	// return fmt.Errorf("invalid IN instruction %v", a.Tokens[i+1])
 			// }
 			byteCode = append(byteCode, op.FinalOpcode)
 			byteCode = append(byteCode, op.Params...)
 
 			i++
 		case "OUT":
-			op := parseOpcodeLine(vm.OPCODE_OUTPUT, tokens[i+1:i+2])
+			op := a.parseOpcodeLine(vm.OPCODE_OUTPUT, a.Tokens[i+1:i+2])
 
 			// if err != nil {
 			// 	// return fmt.Errorf("invalid OUT instruction")
@@ -145,7 +114,7 @@ func Start(filePath string) error {
 
 			i++
 		case "JNZ":
-			op := parseOpcodeLine(vm.OPCODE_JMP_T, tokens[i+1:i+3])
+			op := a.parseOpcodeLine(vm.OPCODE_JMP_T, a.Tokens[i+1:i+3])
 
 			// if err != nil || err1 != nil {
 			// 	// return fmt.Errorf("invalid JNZ instruction")
@@ -154,7 +123,7 @@ func Start(filePath string) error {
 			byteCode = append(byteCode, op.Params...)
 			i += 2
 		case "JZ":
-			op := parseOpcodeLine(vm.OPCODE_JMP_F, tokens[i+1:i+3])
+			op := a.parseOpcodeLine(vm.OPCODE_JMP_F, a.Tokens[i+1:i+3])
 			// if err != nil || err1 != nil {
 			// 	// return fmt.Errorf("invalid JZ instruction")
 			// }
@@ -162,7 +131,7 @@ func Start(filePath string) error {
 			byteCode = append(byteCode, op.Params...)
 			i += 2
 		case "SLT":
-			op := parseOpcodeLine(vm.OPCODE_LESS_THAN, tokens[i+1:i+4])
+			op := a.parseOpcodeLine(vm.OPCODE_LESS_THAN, a.Tokens[i+1:i+4])
 
 			// if err != nil || err1 != nil || err2 != nil {
 			// 	// return fmt.Errorf("invalid SLT instruction")
@@ -172,7 +141,7 @@ func Start(filePath string) error {
 			i += 3
 
 		case "SEQ":
-			op := parseOpcodeLine(vm.OPCODE_EQUALS, tokens[i+1:i+4])
+			op := a.parseOpcodeLine(vm.OPCODE_EQUALS, a.Tokens[i+1:i+4])
 
 			// if err != nil || err1 != nil || err2 != nil {
 			// 	// return fmt.Errorf("invalid SEQ instruction")
@@ -183,7 +152,7 @@ func Start(filePath string) error {
 			i += 3
 
 		case "INCR":
-			op := parseOpcodeLine(vm.OPCODE_INC_RELV, tokens[i+1:i+2])
+			op := a.parseOpcodeLine(vm.OPCODE_INC_RELV, a.Tokens[i+1:i+2])
 
 			// if err != nil {
 			// 	// return fmt.Errorf("invalid INCR instruction")
@@ -197,7 +166,84 @@ func Start(filePath string) error {
 	}
 
 	fmt.Printf("byteCode: %v\n", byteCode)
+	a.ByteCode = byteCode
 	return nil
+}
+
+func (a *Assembler) tokenize(data string) {
+	lines := strings.Split(string(data), "\n")
+
+	for _, l := range lines {
+		tk := strings.Fields(l)
+		if len(tk) > 0 {
+			a.Tokens = append(a.Tokens, tk...)
+		}
+	}
+}
+
+func (a *Assembler) symbolGenerator() {
+	vCnt := 0
+
+	for i, t := range a.Tokens {
+		if strings.HasSuffix(t, ":") {
+			a.Labels[t[:len(t)-1]] = i - len(a.Labels)
+			a.toBeRemovedLabels = append(a.toBeRemovedLabels, t)
+			continue
+		}
+
+		if isOpcode(t) || !isVariable(t) {
+			continue
+		}
+
+		if _, ok := a.Variables[t]; !ok {
+			a.Variables[t] = vCnt
+			vCnt++
+		}
+	}
+
+	fmt.Printf("a.Variables: %v\n", a.Variables)
+}
+
+func (a *Assembler) parseOpcodeLine(opcode int, params []string) AssembleOpcode {
+	op := AssembleOpcode{
+		Opcode:      opcode,
+		Params:      []int{},
+		Mode:        make([]int, 0, 3),
+		FinalOpcode: 0,
+	}
+	for mi := 0; mi < len(params); mi++ {
+
+		// Memory Mode
+		if q, ok := a.Variables[params[mi]]; ok {
+			op.Params = append(op.Params, a.lastAddr+q)
+			op.Mode = append(op.Mode, 0)
+		} else if strings.HasPrefix(params[mi], ":") { // Label Mode
+			ind, ok := a.Labels[params[mi][1:]]
+			if !ok {
+				fmt.Printf("Invalid Label %s", params[mi])
+				continue
+			}
+
+			op.Params = append(op.Params, ind)
+			op.Mode = append(op.Mode, 1)
+
+		} else { // Immediate Mode
+			a, err := strconv.Atoi(params[mi])
+			if err != nil {
+				fmt.Printf("IDK SOMETING WENT WRONG %d %s", err, params[mi])
+			}
+			op.Params = append(op.Params, a)
+			op.Mode = append(op.Mode, 1)
+		}
+	}
+	op.Opcode = opcode
+
+	for i := len(op.Mode) - 1; i >= 0; i-- {
+		op.FinalOpcode = op.FinalOpcode*10 + op.Mode[i]
+	}
+	op.FinalOpcode = op.FinalOpcode*100 + op.Opcode
+	// fmt.Printf("OP: %d | %v | %v | %v\n", opcode, op.Params, op.Mode, op.FinalOpcode)
+	return op
 }
 
 func isOpcode(val string) bool {
@@ -209,61 +255,4 @@ func isOpcode(val string) bool {
 func isVariable(val string) bool {
 	var validIdentifier = regexp.MustCompile(`^[a-zA-Z_][a-zA-Z0-9_]*$`)
 	return validIdentifier.MatchString(val)
-}
-
-func parseOpcodeLine(opcode int, params []string) AssembleOpcode {
-	op := AssembleOpcode{
-		Opcode: opcode,
-		Params: []int{},
-		Mode:   []int{},
-	}
-	mode := strings.Builder{}
-	for mi := 0; mi < len(params); mi++ {
-
-		if q, ok := variables[params[mi]]; ok {
-			// tokens[i+mi] =
-			op.Params = append(op.Params, lastAdrr+q)
-			mode.WriteRune('0')
-			op.Mode = append(op.Mode, 0)
-		} else if strings.HasPrefix(params[mi], ":") {
-			ind, ok := labels[params[mi][1:]]
-			if !ok {
-				fmt.Printf("Invalid Label %s", params[mi])
-				continue
-				// return fmt.Errorf("invalid Label %s", params[mi])
-			}
-
-			op.Params = append(op.Params, ind)
-			mode.WriteRune('1')
-			op.Mode = append(op.Mode, 1)
-			// tokens[i] = fmt.Sprintf("%d->%s", ind, tokens[ind])
-			// tokens[i] = strconv.Itoa(ind)
-
-		} else {
-			a, err := strconv.Atoi(params[mi])
-			if err != nil {
-				fmt.Printf("IDK SOMETING WENT WRONG %d %s", err, params[mi])
-			}
-			op.Params = append(op.Params, a)
-			mode.WriteRune('1')
-			op.Mode = append(op.Mode, 1)
-		}
-	}
-	op.Opcode = opcode
-
-	// mode.WriteString(fmt.Sprintf("0%d", op.Opcode))
-	m := mode.String()
-	revMode := ""
-	for _, v := range m {
-		revMode = string(v) + revMode
-	}
-	fo, err := strconv.Atoi(revMode + fmt.Sprintf("0%d", op.Opcode))
-	op.FinalOpcode = fo
-
-	if err != nil {
-		fmt.Printf("ERROR %v\n", err)
-	}
-
-	fmt.Printf("OP: %d | %v | %v | %v\n", opcode, op.Params, op.Mode, op.FinalOpcode)
-	return op
 }
