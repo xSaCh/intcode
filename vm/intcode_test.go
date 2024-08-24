@@ -88,7 +88,7 @@ func TestIO(t *testing.T) {
 	}
 }
 func TestJmpIfTrue(t *testing.T) {
-	pass, err := expectedDump([]int{5, 1, 4, 99, 1, 0, 0, 0, 99}, []int{10, 1, 4, 99, 1, 0, 0, 0, 99})
+	pass, err := expectedDump([]int{1005, 1, 4, 99, 1, 0, 0, 0, 99}, []int{2010, 1, 4, 99, 1, 0, 0, 0, 99})
 	if !pass {
 		t.Fatal(err)
 	}
